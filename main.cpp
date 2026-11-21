@@ -1,7 +1,7 @@
 #include <iostream>
-#include <sstream>
 #include <string>
 #include "order.h"
+#include "order_list.h"
 #include "order_exception.h"
 
 // Запрос строки у пользователя
@@ -46,112 +46,159 @@ static double ask_amount() {
 }
 
 // Ввод заказа по полям
-static Order* read_order_by_fields() {
+static void read_order(Order &order) {
+    while (true) {
+        try {
+            order.set_payer_account(ask_line("Payer account (20 digits): "));
+            break;
+        }
+        catch (OrderException &e) {
+            std::cout << "Error: " << e.what() << std::endl;
+        }
+    }
+    while (true) {
+        try {
+            order.set_recipient_account(ask_line("Recipient account (20 digits): "));
+            break;
+        }
+        catch (OrderException &e) {
+            std::cout << "Error: " << e.what() << std::endl;
+        }
+    }
+    while (true) {
+        try {
+            order.set_amount(ask_amount());
+            break;
+        }
+        catch (OrderException &e) {
+            std::cout << "Error: " << e.what() << std::endl;
+        }
+    }
+}
+
+static void print_all(const OrderList &list) {
+    if (list.get_count() == 0) {
+        std::cout << "List is empty" << std::endl;
+        return;
+    }
+    for (int i = 0; i < list.get_count(); i++) {
+        std::cout << "#" << i + 1 << std::endl;
+        std::cout << *list.get(i) << std::endl;
+    }
+}
+
+// Добавление заказа на любую позицию
+static void add_order(OrderList &list) {
     Order *order = new Order();
     try {
-        while (true) {
-            try {
-                order->set_payer_account(ask_line("Payer account (20 digits): "));
-                break;
-            }
-            catch (OrderException &e) {
-                std::cout << "Error: " << e.what() << std::endl;
-            }
+        read_order(*order);
+        int position = 1; 
+        if (list.get_count() > 0) {
+            position = ask_int_in_range("Insert position (1.." +
+                                        std::to_string(list.get_count() + 1) + "): ",
+                                        1, list.get_count() + 1);
         }
-        while (true) {
-            try {
-                order->set_recipient_account(ask_line("Recipient account (20 digits): "));
-                break;
-            }
-            catch (OrderException &e) {
-                std::cout << "Error: " << e.what() << std::endl;
-            }
-        }
-        while (true) {
-            try {
-                order->set_amount(ask_amount());
-                break;
-            }
-            catch (OrderException &e) {
-                std::cout << "Error: " << e.what() << std::endl;
-            }
-        }
+        list.add_at(position - 1, order);
+        order = NULL;
+        list.sort_by_payer_account();
+        std::cout << "Order added, the list is sorted by payer account" << std::endl;
     }
     catch (...) {
         delete order;
         throw;
     }
-    return order;
 }
 
-// Ввод заказа одной строкой через перегруженный operator>>
-static Order* read_order_in_line() {
-    Order *order = new Order();
+// Редактирование любой записи
+static void edit_order(OrderList &list) {
+    if (list.get_count() == 0) {
+        std::cout << "List is empty" << std::endl;
+        return;
+    }
+    print_all(list);
+    int number = ask_int_in_range("Record number (0 - back): ", 0, list.get_count()); 
+
+    Order *copy = new Order(*list.get(number - 1)); 
     try {
-        std::string line = ask_line("Payer account, recipient account and amount: ");
-        std::istringstream is(line);
-        is >> *order;
+        read_order(*copy);
+        list.replace_at(number - 1, copy);
+        copy = NULL;
+        std::cout << "Order updated" << std::endl;
+        list.sort_by_payer_account();
+        std::cout << "List re-sorted by payer account" << std::endl;
     }
     catch (...) {
-        delete order;
+        delete copy;
         throw;
     }
-    return order;
 }
 
-static void change_field(Order &order) {
-    std::cout << "1. Payer account\n2. Recipient account\n3. Amount\n0. Back\n";
-    int field = ask_int_in_range("Field: ", 0, 3);
-    if (field == 0) return;
-    if (field == 1) order.set_payer_account(ask_line("New payer account: "));
-    else if (field == 2) order.set_recipient_account(ask_line("New recipient account: "));
-    else order.set_amount(ask_amount());
-    std::cout << "Field changed" << std::endl;
+// Удаление любой записи
+static void remove_order(OrderList &list) {
+    if (list.get_count() == 0) {
+        std::cout << "List is empty" << std::endl;
+        return;
+    }
+    print_all(list);
+    int number = ask_int_in_range("Record number (0 - back): ", 0, list.get_count()); // Номер записи
+    if (number == 0) return;
+    list.remove_at(number - 1);
+    std::cout << "Order removed" << std::endl;
+}
+
+// Сумма, снятая со счёта плательщика
+static void find_amount(const OrderList &list) {
+    std::string account = ask_line("Payer account (20 digits): "); // Искомый счёт
+    if (!Order::is_valid_account(account)) {
+        std::cout << "Error: invalid payer account" << std::endl;
+        return;
+    }
+    int found = list.count_by_payer_account(account); 
+    if (found == 0) {
+        std::cout << "No orders with payer account " << account << std::endl;
+        return;
+    }
+    std::cout << "Total amount withdrawn from payer account " << account << ": "
+              << Order::format_amount(list.total_amount_by_payer_account(account))
+              << " RUB (" << found << " order(s))" << std::endl;
 }
 
 int main() {
-    Order *order = NULL;
     try {
+        OrderList list; // Список заказов на всё время работы программы
         while (true) {
-            std::cout << "\n=== ORDER MENU ===\n\n"
-                      << "1. Input order by fields\n"
-                      << "2. Input order in one line\n"
-                      << "3. Show order\n"
-                      << "4. Change one field\n"
+            std::cout << "\n=== ORDER LIST MENU ===\n\n"
+                      << "1. Add order (at any position)\n"
+                      << "2. Edit order\n"
+                      << "3. Remove order\n"
+                      << "4. Show all orders\n"
+                      << "5. Find amount by payer account\n"
+                      << "6. Sort by payer account\n"
                       << "0. Exit\n\n";
-            int choice = ask_int_in_range("Select: ", 0, 5);
+            int choice = ask_int_in_range("Select: ", 0, 8);
             if (choice == 0) break;
-
             try {
-                if (choice == 1 || choice == 2) {
-                    Order *new_order = (choice == 1) ? read_order_by_fields() : read_order_in_line();
-                    delete order;
-                    order = new_order;
-                    std::cout << "Order created" << std::endl;
-                    continue;
-                }
-                if (order == NULL) {
-                    std::cout << "No order yet, create it first" << std::endl;
-                    continue;
-                }
-                if (choice == 3) {
-                    std::cout << *order << std::endl;
-                }
-                else if (choice == 4) {
-                    change_field(*order);
+                switch (choice) {
+                    case 1: add_order(list); break;
+                    case 2: edit_order(list); break;
+                    case 3: remove_order(list); break;
+                    case 4: print_all(list); break;
+                    case 5: find_amount(list); break;
+                    case 6:
+                        list.sort_by_payer_account();
+                        std::cout << "List sorted" << std::endl; break;
+                    default: break;
                 }
             }
             catch (OrderException &e) {
                 std::cout << "Error: " << e.what() << std::endl;
             }
         }
+        std::cout << "Exit" << std::endl;
     }
     catch (std::exception &e) {
-        delete order;
         std::cout << "Fatal error: " << e.what() << std::endl;
         return 1;
     }
-    delete order;
-    std::cout << "Exit" << std::endl;
     return 0;
 }
