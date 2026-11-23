@@ -117,6 +117,7 @@ static void edit_order(OrderList &list) {
     }
     print_all(list);
     int number = ask_int_in_range("Record number (0 - back): ", 0, list.get_count()); 
+    if (number == 0) return;
 
     Order *copy = new Order(*list.get(number - 1)); 
     try {
@@ -163,6 +164,20 @@ static void find_amount(const OrderList &list) {
               << " RUB (" << found << " order(s))" << std::endl;
 }
 
+// Сохранение списка в файл (путь вводится пользователем)
+static void save_list(const OrderList &list) {
+    std::string path = ask_line("File path to save: "); // Путь к файлу
+    list.save_orders(path);
+    std::cout << "File saved successfully: " << path << std::endl;
+}
+
+// Загрузка списка из файла (путь вводится пользователем)
+static void load_list(OrderList &list) {
+    std::string path = ask_line("File path to load: "); // Путь к файлу
+    list.load_orders(path);
+    std::cout << "Data loaded successfully: " << path << std::endl;
+}
+
 int main() {
     try {
         OrderList list; // Список заказов на всё время работы программы
@@ -174,6 +189,8 @@ int main() {
                       << "4. Show all orders\n"
                       << "5. Find amount by payer account\n"
                       << "6. Sort by payer account\n"
+                      << "7. Save to file\n"
+                      << "8. Load from file\n"
                       << "0. Exit\n\n";
             int choice = ask_int_in_range("Select: ", 0, 8);
             if (choice == 0) break;
@@ -187,6 +204,8 @@ int main() {
                     case 6:
                         list.sort_by_payer_account();
                         std::cout << "List sorted" << std::endl; break;
+                    case 7: save_list(list); break;
+                    case 8: load_list(list); break;
                     default: break;
                 }
             }

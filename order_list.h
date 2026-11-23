@@ -28,6 +28,10 @@ public:
     int count_by_payer_account(const std::string &payer) const;
     double total_amount_by_payer_account(const std::string &payer) const;
 
+    std::string all_to_string() const;           // Упаковка списка в строку
+    void load_all_from_string(std::string text); // Загрузка списка из строки
+    void load_orders(std::string filepath);       // Загрузка списка из файла
+    void save_orders(std::string filepath) const;  // Сохранение списка в файл
 
     OrderList& operator+=(Order *o);             // Короткая запись add
 };

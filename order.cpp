@@ -107,6 +107,37 @@ void Order::check_complete() const {
     }
 }
 
+std::string Order::to_file_line() const {
+    try {
+        std::ostringstream os; // Буфер для строки файла
+        os << payer_account << FIELD_SEP
+           << recipient_account << FIELD_SEP
+           << format_amount(amount);
+        return os.str();
+    }
+    catch (std::bad_alloc&) {
+        throw OrderException("Not enough memory to save an order");
+    }
+}
+
+void Order::load_from_file_line(std::string line) {
+    // В файле поля разделены FIELD_SEP, а operator>> читает их через пробелы
+    for (size_t i = 0; i < line.size(); i++) {
+        if (line[i] == FIELD_SEP) line[i] = ' ';
+    }
+    try {
+        std::istringstream is(line); // Поток для разбора одной записи
+        is >> *this;
+        std::string extra; // Лишнее поле, если запись содержит больше трёх значений
+        if (is >> extra) {
+            throw OrderException("Invalid order record: too many fields");
+        }
+    }
+    catch (std::bad_alloc&) {
+        throw OrderException("Not enough memory to load an order");
+    }
+}
+
 std::string Order::format_amount(double value) {
     try {
         std::ostringstream os; // Буфер для форматированной суммы
