@@ -25,6 +25,12 @@ public:
     std::string get_recipient_account() const;
     double get_amount() const;
 
+    // Универсальный доступ к полям (меню)
+    int field_count() const;
+    std::string field_name(int index) const;
+    std::string get_field(int index) const;
+    void set_field(int index, std::string value);
+    bool field_is_numeric(int index) const;
 
     bool is_complete() const;                     // Все поля заполнены корректно?
     void check_complete() const;                  // Ошибка, если объект не заполнен

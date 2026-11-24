@@ -96,6 +96,43 @@ std::string Order::get_payer_account() const { return payer_account; }
 std::string Order::get_recipient_account() const { return recipient_account; }
 double Order::get_amount() const { return amount; }
 
+int Order::field_count() const { return 3; }
+
+std::string Order::field_name(int index) const {
+    switch (index) {
+        case 0: return "Payer account";
+        case 1: return "Recipient account";
+        case 2: return "Amount";
+    }
+    throw OrderException("Order field index out of range");
+}
+
+std::string Order::get_field(int index) const {
+    switch (index) {
+        case 0: return payer_account;
+        case 1: return recipient_account;
+        case 2: return format_amount(amount);
+    }
+    throw OrderException("Order field index out of range");
+}
+
+void Order::set_field(int index, std::string value) {
+    switch (index) {
+        case 0: set_payer_account(value); return;
+        case 1: set_recipient_account(value); return;
+        case 2: set_amount(parse_amount(value)); return;
+    }
+    throw OrderException("Order field index out of range");
+}
+
+bool Order::field_is_numeric(int index) const {
+    switch (index) {
+        case 2: return true;
+        case 0: case 1: return false;
+    }
+    throw OrderException("Order field index out of range");
+}
+
 bool Order::is_complete() const {
     return is_valid_account(payer_account) && is_valid_account(recipient_account) &&
            std::isfinite(amount) && amount > 0;
